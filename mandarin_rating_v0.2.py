@@ -54,7 +54,6 @@ def unify_punctuation(text):
     return text
 
 def compare_pinyin(correct_pinyin, transcribed_pinyin, correct_text):
-    correct_text_words = list(correct_text)  # 拆分正确文本为单字列表
     correct_text_result = []
 
     comparison_result = []
@@ -69,19 +68,19 @@ def compare_pinyin(correct_pinyin, transcribed_pinyin, correct_text):
     for i, (correct_py, transcribed_py) in enumerate(zip(correct_pinyin, transcribed_pinyin)):
         if correct_py == transcribed_py:
             comparison_result.append(correct_py)
-            correct_text_result.append(correct_text_words[i])  # 对应正确文本原样添加
+            correct_text_result.append(correct_text[i])  # 对应正确文本原样添加
             correct_count += 1
         else:
             # 拼音错误标红
             comparison_result.append(f"<span style='color:red'>{transcribed_py}</span>")
             # 正确文本错误部分标红
-            correct_word = correct_text_words[i] if i < len(correct_text_words) else ""
+            correct_word = correct_text[i] if i < len(correct_text) else ""
             correct_text_result.append(f"<span style='color:red'>{correct_word}</span>")
 
     # correct_rate = (correct_count / total_count) * 100 if total_count > 0 else 0
 
     # 返回修改后的正确文本、比对结果和正确率
-    return " ".join(correct_text_result), " ".join(comparison_result)
+    return "".join(correct_text_result), " ".join(comparison_result)
 
 
 def log_transcription(correct_text, correct_pinyin, transcribed_text, transcribed_pinyin, audio_file):
@@ -90,7 +89,7 @@ def log_transcription(correct_text, correct_pinyin, transcribed_text, transcribe
         log.write(f"正确文本: {correct_text}\n")
         log.write(f"正确拼音: {' '.join(correct_pinyin)}\n")
         log.write(f"识别文本: {transcribed_text}\n")
-        log.write(f"识别拼音: {' '.join(transcribed_pinyin)}\n")
+        log.write(f"识别拼音: {transcribed_pinyin}\n")
         # log.write(f"拼音比对结果: {comparison_result}\n")
         # log.write(f"正确率: {correct_rate:.2f}%\n")
         log.write("="*50 + "\n\n")

@@ -53,38 +53,46 @@ def unify_punctuation(text):
         text = text.replace(eng, chi)
     return text
 
-def compare_pinyin(correct_pinyin, transcribed_pinyin):
-    correct_count = 0
-    total_count = len(correct_pinyin)
-    
+def compare_pinyin(correct_pinyin, transcribed_pinyin, correct_text):
+    correct_text_words = list(correct_text)  # 拆分正确文本为单字列表
+    correct_text_result = []
+
     comparison_result = []
     
+    correct_count = 0
+    total_count = len(correct_pinyin)
+
     # 统一标点格式
     correct_pinyin = [unify_punctuation(p) for p in correct_pinyin]
     transcribed_pinyin = [unify_punctuation(p) for p in transcribed_pinyin]
 
-    for correct, transcribed in zip(correct_pinyin, transcribed_pinyin):
-        if correct == transcribed:
-            comparison_result.append(correct)  # 正确拼音原样添加
+    for i, (correct_py, transcribed_py) in enumerate(zip(correct_pinyin, transcribed_pinyin)):
+        if correct_py == transcribed_py:
+            comparison_result.append(correct_py)
+            correct_text_result.append(correct_text_words[i])  # 对应正确文本原样添加
             correct_count += 1
         else:
-            # 标红显示不同的拼音部分
-            comparison_result.append(f"<span style='color:red'>{transcribed}</span>")
+            # 拼音错误标红
+            comparison_result.append(f"<span style='color:red'>{transcribed_py}</span>")
+            # 正确文本错误部分标红
+            correct_word = correct_text_words[i] if i < len(correct_text_words) else ""
+            correct_text_result.append(f"<span style='color:red'>{correct_word}</span>")
 
-    correct_rate = (correct_count / total_count) * 100 if total_count > 0 else 0
-    
-    # 返回比对结果和正确率
-    return " ".join(comparison_result), correct_rate
+    # correct_rate = (correct_count / total_count) * 100 if total_count > 0 else 0
 
-def log_transcription(correct_text, correct_pinyin, transcribed_text, transcribed_pinyin, comparison_result, correct_rate, audio_file):
+    # 返回修改后的正确文本、比对结果和正确率
+    return " ".join(correct_text_result), " ".join(comparison_result)
+
+
+def log_transcription(correct_text, correct_pinyin, transcribed_text, transcribed_pinyin, audio_file):
     with open(LOG_FILE, "a", encoding="utf-8") as log:
         log.write(f"音频文件: {audio_file}\n")
         log.write(f"正确文本: {correct_text}\n")
         log.write(f"正确拼音: {' '.join(correct_pinyin)}\n")
         log.write(f"识别文本: {transcribed_text}\n")
         log.write(f"识别拼音: {' '.join(transcribed_pinyin)}\n")
-        log.write(f"拼音比对结果: {comparison_result}\n")
-        log.write(f"正确率: {correct_rate:.2f}%\n")
+        # log.write(f"拼音比对结果: {comparison_result}\n")
+        # log.write(f"正确率: {correct_rate:.2f}%\n")
         log.write("="*50 + "\n\n")
 
 def process_files(correct_text, audio_file):
@@ -96,23 +104,24 @@ def process_files(correct_text, audio_file):
     correct_pinyin = text_to_pinyin(correct_text)
     transcribed_pinyin = text_to_pinyin(cleaned_transcription )
     
-    # 比对拼音并计算正确率
-    comparison_result, correct_rate = compare_pinyin(correct_pinyin, transcribed_pinyin)
+    # 比对拼音并标红错误部分，同时返回标红后的正确文本
+    correct_text_result, transcribed_pinyin_result = compare_pinyin(
+        correct_pinyin, transcribed_pinyin, correct_text
+    )
 
     # 写入日志
-    log_transcription(correct_text, correct_pinyin, transcribed_text, transcribed_pinyin, comparison_result, correct_rate, audio_file)
+    log_transcription(correct_text_result, correct_pinyin, transcribed_text, transcribed_pinyin_result, audio_file)
 
-    return (
-        " ".join(correct_pinyin),
-        " ".join(transcribed_pinyin),
-        comparison_result,
-        f"正确率：{correct_rate:.2f}%"
-    )
+    # **在返回的 HTML 结果中加入标题**
+    correct_text_html = f"<h3>正确文本（错误部分标红）</h3>{correct_text_result}"
+    transcribed_pinyin_html = f"<h3>识别拼音（错误部分标红）</h3>{transcribed_pinyin_result}"
+
+    return correct_text_html, transcribed_pinyin_html
 
 def view_log():
     if not os.path.exists(LOG_FILE):
         return "暂无记录。"
-    with open(LOG_FILE, "r") as log:
+    with open(LOG_FILE, "r", encoding="utf-8") as log:
         return log.read()
     
 iface = gr.Interface(
@@ -122,9 +131,11 @@ iface = gr.Interface(
         gr.Audio(type="filepath", label="上传MP3")
     ],
     outputs=[
-        gr.Textbox(label="正确拼音"),
-        gr.Textbox(label="识别拼音"),
-        gr.HTML(label="拼音比对结果"),  # 使用 HTML 组件显示比对结果
+        gr.HTML(),
+        gr.HTML()
+        # gr.Textbox(label="正确拼音"),
+        # gr.Textbox(label="识别拼音"),
+        # gr.HTML(label="拼音比对结果"),  # 使用 HTML 组件显示比对结果
         # gr.Textbox(label="正确率")
     ],
     title="语音发音评估系统",
@@ -142,4 +153,4 @@ log_iface = gr.Interface(
 demo = gr.TabbedInterface([iface, log_iface], ["评估发音", "查看转写记录"])
 
 if __name__ == "__main__":
-    demo.launch(share=True)
+    demo.launch()
